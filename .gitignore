@@ -1,0 +1,7 @@
+.env
+**/__pycache__/
+pricer-**/
+wandb/
+products_vectorstore/
+benchmark_results.pkl
+benchmark_results.json
