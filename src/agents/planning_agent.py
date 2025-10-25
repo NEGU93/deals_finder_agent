@@ -15,6 +15,7 @@ class PlanningAgent(AgentLogger):
         Create instances of the 3 Agents that this planner coordinates across
         """
         self.log("Planning Agent is initializing")
+        self.scanner = ScannerAgent()
         self.ensemble = GPT4MiniRAG(collection)
         self.log("Planning Agent is ready")
 
