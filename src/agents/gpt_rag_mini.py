@@ -5,11 +5,12 @@ import re
 from typing import List, Dict
 from openai import OpenAI
 from sentence_transformers import SentenceTransformer
+from src import MODEL_NAME
 from src.agents.agent_logger import AgentLogger
 
 
 class GPT4MiniRAG(AgentLogger):
-    name = "Frontier Agent"
+    name = "Price Estimator Agent"
     color = AgentLogger.BLUE
 
     MODEL = "gpt-4o-mini"
@@ -19,17 +20,15 @@ class GPT4MiniRAG(AgentLogger):
         Set up this instance by connecting to OpenAI or DeepSeek, to the Chroma Datastore,
         And setting up the vector encoding model
         """
-        self.log("Initializing Frontier Agent")
+        self.log(f"Initializing {self.name}")
         openai_api_key = os.getenv("OPENAI_API_KEY")
 
         self.client = OpenAI(api_key=openai_api_key)
         self.MODEL = "gpt-4o-mini"
-        self.log("Frontier Agent is setting up with OpenAI")
+        self.log(f"{self.name} is setting up with OpenAI")
         self.collection = collection
-        self.model = SentenceTransformer(
-            "sentence-transformers/all-MiniLM-L6-v2"
-        )
-        self.log("Frontier Agent is ready")
+        self.model = SentenceTransformer(MODEL_NAME)
+        self.log(f"{self.name} is ready")
 
     def make_context(self, similars: List[str], prices: List[float]) -> str:
         """
@@ -71,7 +70,7 @@ class GPT4MiniRAG(AgentLogger):
         Return a list of items similar to the given one by looking in the Chroma datastore
         """
         self.log(
-            "Frontier Agent is performing a RAG search of the Chroma datastore to find 5 similar products"
+            f"{self.name} is performing a RAG search of the Chroma datastore to find 5 similar products"
         )
         vector = self.model.encode([description])
         results = self.collection.query(
@@ -81,7 +80,7 @@ class GPT4MiniRAG(AgentLogger):
         prices = [m["price"] for m in results["metadatas"][0][:]]
         if not len(prices):
             raise FileNotFoundError(
-                "Frontier Agent has not found any similar products"
+                f"{self.name} has not found any similar products"
             )
         return documents, prices
 
@@ -106,7 +105,7 @@ class GPT4MiniRAG(AgentLogger):
             documents = []
             prices = []
         self.log(
-            f"Frontier Agent is about to call {self.MODEL} with context including {len(documents)} similar products"
+            f"{self.name} is about to call {self.MODEL} with context including {len(documents)} similar products"
         )
         response = self.client.chat.completions.create(
             model=self.MODEL,
@@ -116,14 +115,14 @@ class GPT4MiniRAG(AgentLogger):
         )
         reply = response.choices[0].message.content
         result = self.get_price(reply)
-        self.log(f"Frontier Agent completed - predicting ${result:.2f}")
+        self.log(f"{self.name} completed - predicting ${result:.2f}")
         return result
 
 
 if __name__ == "__main__":
     import chromadb
+    from src import DB
 
-    DB = "products_vectorstore"
     # Connect to the Chroma datastore
     client = chromadb.PersistentClient(path=DB)
     collection = client.get_or_create_collection(name="products")

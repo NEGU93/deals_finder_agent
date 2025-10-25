@@ -1,8 +1,8 @@
 from typing import Optional, List
 from src.agents.agent_logger import AgentLogger
 from src.schemas import Deal, Opportunity
-from agents.scanner_agent import ScannerAgent
-from src.agents import GPT4MiniRAG
+from src.agents.scanner_agent import ScannerAgent
+from src.agents.gpt_rag_mini import GPT4MiniRAG
 
 
 class PlanningAgent(AgentLogger):
@@ -56,3 +56,21 @@ class PlanningAgent(AgentLogger):
             self.log("Planning Agent has completed a run")
             return best if best.discount > self.DEAL_THRESHOLD else None
         return None
+
+
+if __name__ == "__main__":
+    from src import DB
+    import chromadb
+
+    # Connect to the Chroma datastore
+    client = chromadb.PersistentClient(path=DB)
+    collection = client.get_collection(name="products")
+
+    agent = PlanningAgent(collection)
+    opportunity = agent.plan()
+    if opportunity:
+        agent.log(
+            f"Found opportunity: Buy for ${opportunity.deal.price:.2f}, estimated value ${opportunity.estimate:.2f}, discount ${opportunity.discount:.2f}"
+        )
+    else:
+        agent.log("No opportunity found")

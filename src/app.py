@@ -3,9 +3,7 @@ import queue
 import threading
 import time
 import gradio as gr
-from deals_finder_agent.src.agents.deal_agent_framework import (
-    DealAgentFramework,
-)
+from src.agents.deal_agent_framework import DealAgentFramework
 from src.log_utils import reformat
 import plotly.graph_objects as go
 
@@ -189,10 +187,7 @@ class App:
                     max_height=400,
                 )
             with gr.Row():
-                with gr.Column(scale=1):
-                    logs = gr.HTML()
-                with gr.Column(scale=1):
-                    plot = gr.Plot(value=get_plot(), show_label=False)
+                logs = gr.HTML()
 
             ui.load(
                 run_with_logging,

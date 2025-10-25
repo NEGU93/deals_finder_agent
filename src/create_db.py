@@ -1,19 +1,16 @@
 import os
 import chromadb
 from tqdm import tqdm
-from dotenv import load_dotenv
 from datasets import load_dataset
 from huggingface_hub import login
 from sentence_transformers import SentenceTransformer
+from src import DB, MODEL_NAME
 
-load_dotenv(override=True)
 hf_token = os.getenv("HF_TOKEN")
-print(hf_token)
+
 login(hf_token, add_to_git_credential=True)
 HF_USER = "NEGU93"
-DB = "products_vectorstore"
 DATASET_NAME = f"{HF_USER}/pricer-data"
-MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 
 def description(item):

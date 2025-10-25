@@ -1,14 +1,14 @@
 import os
 import sys
-import logging
 import json
-from typing import List
-from dotenv import load_dotenv
+import logging
 import chromadb
-from agents.planning_agent import PlanningAgent
-from src.schemas import Opportunity
+from typing import List
 from sklearn.manifold import TSNE
 import numpy as np
+from src import DB
+from src.agents.planning_agent import PlanningAgent
+from src.schemas import Opportunity
 
 
 # Colors for logging
@@ -54,13 +54,11 @@ def init_logging():
 
 
 class DealAgentFramework:
-    DB = "products_vectorstore"
     MEMORY_FILENAME = "memory.json"
 
     def __init__(self):
         init_logging()
-        load_dotenv()
-        client = chromadb.PersistentClient(path=self.DB)
+        client = chromadb.PersistentClient(path=DB)
         self.memory = self.read_memory()
         self.collection = client.get_or_create_collection("products")
         self.planner = None
@@ -97,22 +95,6 @@ class DealAgentFramework:
             self.memory.append(result)
             self.write_memory()
         return self.memory
-
-    @classmethod
-    def get_plot_data(cls, max_datapoints=10000):
-        client = chromadb.PersistentClient(path=cls.DB)
-        collection = client.get_or_create_collection("products")
-        result = collection.get(
-            include=["embeddings", "documents", "metadatas"],
-            limit=max_datapoints,
-        )
-        vectors = np.array(result["embeddings"])
-        documents = result["documents"]
-        categories = [metadata["category"] for metadata in result["metadatas"]]
-        colors = [COLORS[CATEGORIES.index(c)] for c in categories]
-        tsne = TSNE(n_components=3, random_state=42, n_jobs=-1)
-        reduced_vectors = tsne.fit_transform(vectors)
-        return documents, reduced_vectors, colors
 
 
 if __name__ == "__main__":

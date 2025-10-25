@@ -1,6 +1,7 @@
 import re
 import time
 import requests
+import logging
 import feedparser
 from openai import OpenAI
 from tqdm import tqdm
@@ -9,6 +10,8 @@ from typing import Optional, List, Dict, Self
 from src.schemas import DealSelection
 from src.agents.agent_logger import AgentLogger
 
+# Disable OpenAI debug logging
+logging.getLogger("openai").setLevel(logging.WARNING)
 
 feeds = [
     "https://www.dealnews.com/c142/Electronics/?rss=1",
@@ -129,21 +132,21 @@ class ScannerAgent(AgentLogger):
         """
         Set up this instance by initializing OpenAI
         """
-        self.log("Scanner Agent is initializing")
+        self.log(f"{self.name} is initializing")
         self.openai = OpenAI()
-        self.log("Scanner Agent is ready")
+        self.log(f"{self.name} is ready")
 
     def fetch_deals(self, memory) -> List[ScrapedDeal]:
         """
         Look up deals published on RSS feeds
         Return any new deals that are not already in the memory provided
         """
-        self.log("Scanner Agent is about to fetch deals from RSS feed")
+        self.log(f"{self.name} is about to fetch deals from RSS feed")
         urls = [opp.deal.url for opp in memory]
         scraped = ScrapedDeal.fetch()
         result = [scrape for scrape in scraped if scrape.url not in urls]
         self.log(
-            f"Scanner Agent received {len(result)} deals not already scraped"
+            f"{self.name} received {len(result)} deals not already scraped"
         )
         return result
 
@@ -166,7 +169,7 @@ class ScannerAgent(AgentLogger):
         scraped = self.fetch_deals(memory)
         if scraped:
             user_prompt = self.make_user_prompt(scraped)
-            self.log("Scanner Agent is calling OpenAI using Structured Output")
+            self.log(f"{self.name} is calling OpenAI using Structured Output")
             result = self.openai.beta.chat.completions.parse(
                 model=self.MODEL,
                 messages=[
@@ -178,7 +181,13 @@ class ScannerAgent(AgentLogger):
             result = result.choices[0].message.parsed
             result.deals = [deal for deal in result.deals if deal.price > 0]
             self.log(
-                f"Scanner Agent received {len(result.deals)} selected deals with price>0 from OpenAI"
+                f"{self.name} received {len(result.deals)} selected deals with price>0 from OpenAI"
             )
             return result
         return None
+
+
+if __name__ == "__main__":
+    agent = ScannerAgent()
+    deals = agent.scan()
+    print(deals)
