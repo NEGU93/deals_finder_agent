@@ -60,6 +60,7 @@ class DealAgentFramework:
             allow_reset=True, anonymized_telemetry=False
         )
         client = chromadb.PersistentClient(path=DB, settings=settings)
+
         self.memory = self.read_memory()
         self.collection = client.get_or_create_collection("products")
         self.planner = None

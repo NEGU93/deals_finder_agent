@@ -5,7 +5,6 @@ import time
 import gradio as gr
 from src.agents.deal_agent_framework import DealAgentFramework
 from src.log_utils import reformat
-import plotly.graph_objects as go
 
 
 class QueueHandler(logging.Handler):
@@ -51,8 +50,14 @@ class App:
 
     def get_agent_framework(self):
         if not self.agent_framework:
-            self.agent_framework = DealAgentFramework()
-            self.agent_framework.init_agents_as_needed()
+            try:
+                self.agent_framework = DealAgentFramework()
+                self.agent_framework.init_agents_as_needed()
+            except Exception as e:
+                logging.error(
+                    f"❌ Failed to initialize DealAgentFramework: {str(e)}"
+                )
+                raise
         return self.agent_framework
 
     def run(self):
@@ -108,24 +113,29 @@ class App:
                 self.last_run_time = time.time()
                 logging.info("🚀 Starting new scan cycle...")
                 try:
-                    new_opportunities = self.get_agent_framework().run()
-                    # Deduplicate by URL (keep first occurrence)
-                    seen_urls = set()
-                    unique_opportunities = []
-                    for opp in new_opportunities:
-                        if opp.deal.url not in seen_urls:
-                            seen_urls.add(opp.deal.url)
-                            unique_opportunities.append(opp)
-
-                    table = table_for(unique_opportunities)
+                    memory_result = self.get_agent_framework().run()
+                    # Memory is now a dict, convert to table
+                    table = table_for(memory_result)
+                    memory_size = len(memory_result)
                     logging.info(
-                        f"✅ Scan cycle complete. Total opportunities in memory: {len(unique_opportunities)} (deduplicated from {len(new_opportunities)})"
+                        f"✅ Scan cycle complete. Total opportunities in memory: {memory_size}"
                     )
                     return table
                 finally:
                     self.is_scanning = False
 
             def run_with_logging(initial_log_data):
+                if self.is_scanning:
+                    logging.info(
+                        "⚠️ Scan already running, skipping duplicate request"
+                    )
+                    yield (
+                        initial_log_data,
+                        html_for(initial_log_data),
+                        table_for(self.get_agent_framework().memory),
+                    )
+                    return
+
                 log_queue = queue.Queue()
                 result_queue = queue.Queue()
                 setup_logging(log_queue)
@@ -152,20 +162,36 @@ class App:
             def update_countdown():
                 """Update countdown timer every second"""
                 if self.last_run_time is None:
-                    return "⏳ First scan will start immediately after initialization"
+                    status = (
+                        "" if not self.is_scanning else "🔄 **Scanning...**"
+                    )
+                    return (
+                        "⏳ First scan will start immediately after initialization",
+                        status,
+                    )
 
                 elapsed = time.time() - self.last_run_time
                 remaining = max(0, 300 - int(elapsed))
 
-                if remaining == 0:
-                    return "🔄 Scanning for deals now..."
+                if remaining == 0 or self.is_scanning:
+                    return "🔄 Scanning for deals now...", "🔄 **Scanning...**"
 
                 minutes = remaining // 60
                 seconds = remaining % 60
-                return f"⏰ Next scan in: {minutes:02d}:{seconds:02d}"
+                return f"⏰ Next scan in: {minutes:02d}:{seconds:02d}", ""
 
             def manual_scan_trigger(initial_log_data):
                 """Manual button to trigger a scan immediately"""
+                if self.is_scanning:
+                    logging.info("⚠️ Scan already in progress, please wait...")
+                    # Just return current state without triggering new scan
+                    yield (
+                        initial_log_data,
+                        html_for(initial_log_data),
+                        table_for(self.get_agent_framework().memory),
+                    )
+                    return
+
                 logging.info("🔘 Manual scan triggered by user")
                 for result in run_with_logging(initial_log_data):
                     yield result
@@ -186,6 +212,8 @@ class App:
                         value="⏳ Initializing...",
                         elem_classes="countdown-timer",
                     )
+                with gr.Column(scale=1):
+                    scan_status = gr.Markdown(value="")
                 with gr.Column(scale=1):
                     manual_scan_btn = gr.Button(
                         "🔍 Scan Now", variant="primary"
@@ -226,7 +254,9 @@ class App:
 
             # Countdown display timer (updates every 1 second)
             countdown_timer = gr.Timer(value=1, active=True)
-            countdown_timer.tick(update_countdown, outputs=[countdown_display])
+            countdown_timer.tick(
+                update_countdown, outputs=[countdown_display, scan_status]
+            )
 
             # Manual scan button
             manual_scan_btn.click(
