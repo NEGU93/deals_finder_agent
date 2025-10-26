@@ -8,7 +8,7 @@ This project uses the most performing AI price predictor from [NEGU LLM Regresso
 ![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o--mini-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-[!ui](img/ui.png)
+![ui](img/ui.png)
 
 > [!note]
 > The RAG documents are old, therefore, the price estimator may over estimate the price of old products, mainly for technology ones.
@@ -25,7 +25,7 @@ This system autonomously:
 
 ## 🏗️ Architecture
 
-[!ui](img/deal%20finder%20agent%20diagram.png)
+![architecture_diagram](img/deal%20finder%20agent%20diagram.png)
 
 ```
 App (Gradio UI)
