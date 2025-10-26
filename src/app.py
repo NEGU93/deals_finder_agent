@@ -178,23 +178,7 @@ class App:
 
                 minutes = remaining // 60
                 seconds = remaining % 60
-                return f"⏰ Next scan in: {minutes:02d}:{seconds:02d}", ""
-
-            def manual_scan_trigger(initial_log_data):
-                """Manual button to trigger a scan immediately"""
-                if self.is_scanning:
-                    logging.info("⚠️ Scan already in progress, please wait...")
-                    # Just return current state without triggering new scan
-                    yield (
-                        initial_log_data,
-                        html_for(initial_log_data),
-                        table_for(self.get_agent_framework().memory),
-                    )
-                    return
-
-                logging.info("🔘 Manual scan triggered by user")
-                for result in run_with_logging(initial_log_data):
-                    yield result
+                return f"⏰ Next scan in: {minutes:02d}:{seconds:02d}"
 
             with gr.Row():
                 gr.Markdown(
@@ -211,12 +195,6 @@ class App:
                     countdown_display = gr.Markdown(
                         value="⏳ Initializing...",
                         elem_classes="countdown-timer",
-                    )
-                with gr.Column(scale=1):
-                    scan_status = gr.Markdown(value="")
-                with gr.Column(scale=1):
-                    manual_scan_btn = gr.Button(
-                        "🔍 Scan Now", variant="primary"
                     )
 
             with gr.Row():
@@ -254,16 +232,14 @@ class App:
 
             # Countdown display timer (updates every 1 second)
             countdown_timer = gr.Timer(value=1, active=True)
-            countdown_timer.tick(
-                update_countdown, outputs=[countdown_display, scan_status]
-            )
+            countdown_timer.tick(update_countdown, outputs=[countdown_display])
 
-            # Manual scan button
-            manual_scan_btn.click(
-                manual_scan_trigger,
-                inputs=[log_data],
-                outputs=[log_data, logs, opportunities_dataframe],
-            )
+            # # Manual scan button
+            # manual_scan_btn.click(
+            #     manual_scan_trigger,
+            #     inputs=[log_data],
+            #     outputs=[log_data, logs, opportunities_dataframe],
+            # )
 
         ui.launch(share=False, inbrowser=True)
 

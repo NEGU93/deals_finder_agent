@@ -104,11 +104,11 @@ class DealAgentFramework:
 
     def run(self) -> dict:
         self.init_agents_as_needed()
-        logging.info("Kicking off Planning Agent")
+        self.log("Kicking off Planning Agent")
         # Pass memory as list of opportunities for backward compatibility
         memory_list = list(self.memory.values())
         result = self.planner.plan(memory=memory_list)
-        logging.info(f"Planning Agent has completed and returned: {result}")
+        self.log(f"Planning Agent has completed and returned: {result}")
         if result:
             url = result.deal.url
             if url not in self.memory:  # O(1) lookup!
