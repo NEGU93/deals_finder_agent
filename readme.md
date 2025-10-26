@@ -1,19 +1,20 @@
 # 🛍️ Deals Finder Agent
 
+![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
+![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o--mini-green.svg)
+
 An autonomous multi-agent AI system that continuously monitors online deals, estimates fair market prices using RAG (Retrieval-Augmented Generation), and surfaces only the best discounts—all automated with a clean Gradio interface.
 
 This project uses the most performing AI price predictor from [NEGU LLM Regressor](https://github.com/NEGU93/llm_regression) project to find good deals and prices.
-
-![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
-![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o--mini-green.svg)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 ![ui](img/ui.png)
 
 > [!note]
 > The RAG documents are old, therefore, the price estimator may over estimate the price of old products, mainly for technology ones.
 
-## 🎯 What It Does
+## 🏗️ Architecture
+
+![architecture_diagram](img/deal%20finder%20agent%20diagram.png)
 
 This system autonomously:
 1. **Scrapes** deal listings from multiple RSS feeds (DealNews)
@@ -23,39 +24,6 @@ This system autonomously:
 5. **Filters** deals to only show discounts greater than $50
 6. **Displays** results in a real-time dashboard with auto-refresh
 
-## 🏗️ Architecture
-
-![architecture_diagram](img/deal%20finder%20agent%20diagram.png)
-
-```
-App (Gradio UI)
-  └─ DealAgentFramework (Orchestrator & Memory Manager)
-      └─ PlanningAgent (Workflow Coordinator)
-          ├─ ScannerAgent (Deal Finder)
-          │   └─ Scrapes RSS feeds → LLM extracts structured data
-          └─ GPT4MiniRAG (Price Estimator)
-              └─ Vector search ChromaDB → LLM + RAG estimates price
-```
-
-### Data Flow
-
-```
-RSS Feeds
-   ↓
-ScannerAgent (scrape + structure)
-   ↓
-PlanningAgent (coordinate workflow)
-   ↓
-GPT4MiniRAG (RAG-based price estimation)
-   ↓
-Calculate Discount (estimate - actual_price)
-   ↓
-Filter (discount > $50)
-   ↓
-Save to memory.json
-   ↓
-Display in Gradio UI
-```
 
 ## 🚀 Quick Start
 
