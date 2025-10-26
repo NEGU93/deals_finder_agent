@@ -60,6 +60,9 @@ class App:
             log_data = gr.State([])
 
             def table_for(opps):
+                # Handle both dict and list
+                if isinstance(opps, dict):
+                    opps = list(opps.values())
                 return [
                     [
                         opp.deal.product_description,
@@ -106,9 +109,17 @@ class App:
                 logging.info("🚀 Starting new scan cycle...")
                 try:
                     new_opportunities = self.get_agent_framework().run()
-                    table = table_for(new_opportunities)
+                    # Deduplicate by URL (keep first occurrence)
+                    seen_urls = set()
+                    unique_opportunities = []
+                    for opp in new_opportunities:
+                        if opp.deal.url not in seen_urls:
+                            seen_urls.add(opp.deal.url)
+                            unique_opportunities.append(opp)
+
+                    table = table_for(unique_opportunities)
                     logging.info(
-                        f"✅ Scan cycle complete. Total opportunities in memory: {len(new_opportunities)}"
+                        f"✅ Scan cycle complete. Total opportunities in memory: {len(unique_opportunities)} (deduplicated from {len(new_opportunities)})"
                     )
                     return table
                 finally:

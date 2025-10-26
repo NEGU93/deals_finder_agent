@@ -70,16 +70,30 @@ class DealAgentFramework:
             self.planner = PlanningAgent(self.collection)
             self.log("Agent Framework is ready")
 
-    def read_memory(self) -> List[Opportunity]:
+    def read_memory(self) -> dict:
+        """Read memory as a dictionary keyed by URL"""
         if os.path.exists(self.MEMORY_FILENAME):
             with open(self.MEMORY_FILENAME, "r") as file:
                 data = json.load(file)
-            opportunities = [Opportunity(**item) for item in data]
-            return opportunities
-        return []
+            # Convert list to dict, keyed by URL
+            if isinstance(data, list):
+                # Handle old format (list)
+                memory_dict = {
+                    item["deal"]["url"]: Opportunity(**item) for item in data
+                }
+            else:
+                # Already dict format
+                memory_dict = {
+                    url: Opportunity(**item) for url, item in data.items()
+                }
+            return memory_dict
+        return {}
 
     def write_memory(self) -> None:
-        data = [opportunity.dict() for opportunity in self.memory]
+        """Write memory dict to JSON"""
+        data = {
+            url: opportunity.dict() for url, opportunity in self.memory.items()
+        }
         with open(self.MEMORY_FILENAME, "w") as file:
             json.dump(data, file, indent=2)
 
@@ -87,16 +101,17 @@ class DealAgentFramework:
         text = BG_BLUE + WHITE + "[Agent Framework] " + message + RESET
         logging.info(text)
 
-    def run(self) -> List[Opportunity]:
+    def run(self) -> dict:
         self.init_agents_as_needed()
-        self.log("Kicking off Planning Agent")
-        result = self.planner.plan(memory=self.memory)
-        self.log(f"Planning Agent has completed and returned: {result}")
+        logging.info("Kicking off Planning Agent")
+        # Pass memory as list of opportunities for backward compatibility
+        memory_list = list(self.memory.values())
+        result = self.planner.plan(memory=memory_list)
+        logging.info(f"Planning Agent has completed and returned: {result}")
         if result:
-            # Check if this URL already exists in memory
-            existing_urls = [opp.deal.url for opp in self.memory]
-            if result.deal.url not in existing_urls:
-                self.memory.append(result)
+            url = result.deal.url
+            if url not in self.memory:  # O(1) lookup!
+                self.memory[url] = result
                 self.write_memory()
                 self.log("✅ New deal added to memory")
             else:
