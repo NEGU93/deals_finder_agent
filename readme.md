@@ -8,6 +8,11 @@ This project uses the most performing AI price predictor from [NEGU LLM Regresso
 ![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o--mini-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
+[!ui](img/ui.png)
+
+> [!note]
+> The RAG documents are old, therefore, the price estimator may over estimate the price of old products, mainly for technology ones.
+
 ## 🎯 What It Does
 
 This system autonomously:
@@ -20,16 +25,16 @@ This system autonomously:
 
 ## 🏗️ Architecture
 
-### Agent Hierarchy
+[!ui](img/deal%20finder%20agent%20diagram.png)
 
 ```
 App (Gradio UI)
   └─ DealAgentFramework (Orchestrator & Memory Manager)
       └─ PlanningAgent (Workflow Coordinator)
           ├─ ScannerAgent (Deal Finder)
-          │   └─ Scrapes RSS feeds → GPT-4o-mini extracts structured data
+          │   └─ Scrapes RSS feeds → LLM extracts structured data
           └─ GPT4MiniRAG (Price Estimator)
-              └─ Vector search ChromaDB → GPT-4o-mini estimates price
+              └─ Vector search ChromaDB → LLM + RAG estimates price
 ```
 
 ### Data Flow
