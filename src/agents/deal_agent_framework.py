@@ -4,8 +4,6 @@ import json
 import logging
 import chromadb
 from typing import List
-from sklearn.manifold import TSNE
-import numpy as np
 from src import DB
 from src.agents.planning_agent import PlanningAgent
 from src.schemas import Opportunity
@@ -58,7 +56,10 @@ class DealAgentFramework:
 
     def __init__(self):
         init_logging()
-        client = chromadb.PersistentClient(path=DB)
+        settings = chromadb.Settings(
+            allow_reset=True, anonymized_telemetry=False
+        )
+        client = chromadb.PersistentClient(path=DB, settings=settings)
         self.memory = self.read_memory()
         self.collection = client.get_or_create_collection("products")
         self.planner = None
@@ -88,12 +89,18 @@ class DealAgentFramework:
 
     def run(self) -> List[Opportunity]:
         self.init_agents_as_needed()
-        logging.info("Kicking off Planning Agent")
+        self.log("Kicking off Planning Agent")
         result = self.planner.plan(memory=self.memory)
-        logging.info(f"Planning Agent has completed and returned: {result}")
+        self.log(f"Planning Agent has completed and returned: {result}")
         if result:
-            self.memory.append(result)
-            self.write_memory()
+            # Check if this URL already exists in memory
+            existing_urls = [opp.deal.url for opp in self.memory]
+            if result.deal.url not in existing_urls:
+                self.memory.append(result)
+                self.write_memory()
+                self.log("✅ New deal added to memory")
+            else:
+                self.log("⚠️ Deal already in memory, skipping duplicate")
         return self.memory
 
 

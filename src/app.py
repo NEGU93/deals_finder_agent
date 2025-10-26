@@ -20,7 +20,12 @@ class QueueHandler(logging.Handler):
 def html_for(log_data):
     output = "<br>".join(log_data[-18:])
     return f"""
-    <div id="scrollContent" style="height: 400px; overflow-y: auto; border: 1px solid #ccc; background-color: #222229; padding: 10px;">
+    <div id="scrollContent" style="height: 400px; overflow-y: auto; border: 1px solid #ccc; background-color: #1e1e1e; padding: 10px; font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; line-height: 1.6;">
+    <style>
+        #scrollContent {{
+            color: #e0e0e0;
+        }}
+    </style>
     {output}
     </div>
     """
@@ -41,6 +46,8 @@ def setup_logging(log_queue):
 class App:
     def __init__(self):
         self.agent_framework = None
+        self.last_run_time = None
+        self.is_scanning = False
 
     def get_agent_framework(self):
         if not self.agent_framework:
@@ -89,56 +96,23 @@ class App:
                                 break
                             time.sleep(0.1)
 
-            def get_initial_plot():
-                fig = go.Figure()
-                fig.update_layout(
-                    title="Loading vector DB...",
-                    height=400,
-                )
-                return fig
-
-            def get_plot():
-                documents, vectors, colors = DealAgentFramework.get_plot_data(
-                    max_datapoints=1000
-                )
-                # Create the 3D scatter plot
-                fig = go.Figure(
-                    data=[
-                        go.Scatter3d(
-                            x=vectors[:, 0],
-                            y=vectors[:, 1],
-                            z=vectors[:, 2],
-                            mode="markers",
-                            marker=dict(size=2, color=colors, opacity=0.7),
-                        )
-                    ]
-                )
-
-                fig.update_layout(
-                    scene=dict(
-                        xaxis_title="x",
-                        yaxis_title="y",
-                        zaxis_title="z",
-                        aspectmode="manual",
-                        aspectratio=dict(
-                            x=2.2, y=2.2, z=1
-                        ),  # Make x-axis twice as long
-                        camera=dict(
-                            eye=dict(
-                                x=1.6, y=1.6, z=0.8
-                            )  # Adjust camera position
-                        ),
-                    ),
-                    height=400,
-                    margin=dict(r=5, b=1, l=5, t=2),
-                )
-
-                return fig
-
             def do_run():
-                new_opportunities = self.get_agent_framework().run()
-                table = table_for(new_opportunities)
-                return table
+                if self.is_scanning:
+                    logging.info("⚠️ Scan already in progress, skipping...")
+                    return table_for(self.get_agent_framework().memory)
+
+                self.is_scanning = True
+                self.last_run_time = time.time()
+                logging.info("🚀 Starting new scan cycle...")
+                try:
+                    new_opportunities = self.get_agent_framework().run()
+                    table = table_for(new_opportunities)
+                    logging.info(
+                        f"✅ Scan cycle complete. Total opportunities in memory: {len(new_opportunities)}"
+                    )
+                    return table
+                finally:
+                    self.is_scanning = False
 
             def run_with_logging(initial_log_data):
                 log_queue = queue.Queue()
@@ -146,8 +120,15 @@ class App:
                 setup_logging(log_queue)
 
                 def worker():
-                    result = do_run()
-                    result_queue.put(result)
+                    try:
+                        result = do_run()
+                        result_queue.put(result)
+                    except Exception as e:
+                        logging.error(f"❌ Error during scan: {str(e)}")
+                        import traceback
+
+                        logging.error(traceback.format_exc())
+                        result_queue.put(None)
 
                 thread = threading.Thread(target=worker)
                 thread.start()
@@ -157,11 +138,26 @@ class App:
                 ):
                     yield log_data, output, final_result
 
-            def do_select(selected_index: gr.SelectData):
-                opportunities = self.get_agent_framework().memory
-                row = selected_index.index[0]
-                opportunity = opportunities[row]
-                self.get_agent_framework().planner.messenger.alert(opportunity)
+            def update_countdown():
+                """Update countdown timer every second"""
+                if self.last_run_time is None:
+                    return "⏳ First scan will start immediately after initialization"
+
+                elapsed = time.time() - self.last_run_time
+                remaining = max(0, 300 - int(elapsed))
+
+                if remaining == 0:
+                    return "🔄 Scanning for deals now..."
+
+                minutes = remaining // 60
+                seconds = remaining % 60
+                return f"⏰ Next scan in: {minutes:02d}:{seconds:02d}"
+
+            def manual_scan_trigger(initial_log_data):
+                """Manual button to trigger a scan immediately"""
+                logging.info("🔘 Manual scan triggered by user")
+                for result in run_with_logging(initial_log_data):
+                    yield result
 
             with gr.Row():
                 gr.Markdown(
@@ -171,6 +167,19 @@ class App:
                 gr.Markdown(
                     '<div style="text-align: center;font-size:14px">A proprietary fine-tuned LLM deployed on Modal and a RAG pipeline with a frontier model collaborate to send push notifications with great online deals.</div>'
                 )
+
+            # Countdown Timer and Manual Scan Button Row
+            with gr.Row():
+                with gr.Column(scale=3):
+                    countdown_display = gr.Markdown(
+                        value="⏳ Initializing...",
+                        elem_classes="countdown-timer",
+                    )
+                with gr.Column(scale=1):
+                    manual_scan_btn = gr.Button(
+                        "🔍 Scan Now", variant="primary"
+                    )
+
             with gr.Row():
                 opportunities_dataframe = gr.Dataframe(
                     headers=[
@@ -189,20 +198,31 @@ class App:
             with gr.Row():
                 logs = gr.HTML()
 
+            # Initial load - trigger first scan
             ui.load(
                 run_with_logging,
                 inputs=[log_data],
                 outputs=[log_data, logs, opportunities_dataframe],
             )
 
-            timer = gr.Timer(value=300, active=True)
-            timer.tick(
+            # Main timer for scanning (every 300 seconds = 5 minutes)
+            scan_timer = gr.Timer(value=300, active=True)
+            scan_timer.tick(
                 run_with_logging,
                 inputs=[log_data],
                 outputs=[log_data, logs, opportunities_dataframe],
             )
 
-            opportunities_dataframe.select(do_select)
+            # Countdown display timer (updates every 1 second)
+            countdown_timer = gr.Timer(value=1, active=True)
+            countdown_timer.tick(update_countdown, outputs=[countdown_display])
+
+            # Manual scan button
+            manual_scan_btn.click(
+                manual_scan_trigger,
+                inputs=[log_data],
+                outputs=[log_data, logs, opportunities_dataframe],
+            )
 
         ui.launch(share=False, inbrowser=True)
 
