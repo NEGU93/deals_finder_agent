@@ -1,7 +1,9 @@
 # 🛍️ Deals Finder Agent
 
-![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
-![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o--mini-green.svg)
+[![Gradio](https://img.shields.io/badge/Gradio-5.34.2-orange)](https://gradio.app/)
+![Multi-Agent](https://img.shields.io/badge/Multi--Agent-Framework-blue.svg)
+![RAG](https://img.shields.io/badge/RAG-ChromaDB-orange.svg)
+![Pydantic](https://img.shields.io/badge/Pydantic-Structured%20Output-purple.svg)
 
 An autonomous multi-agent AI system that continuously monitors online deals, estimates fair market prices using RAG (Retrieval-Augmented Generation), and surfaces only the best discounts—all automated with a clean Gradio interface.
 
